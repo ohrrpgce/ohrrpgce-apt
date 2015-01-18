@@ -269,9 +269,6 @@ def build(iface, directory, commands):
     global blacklist
     global whitelist
     
-    blacklist = PatternList("blacklist.txt")
-    whitelist = PatternList("whitelist.txt")
-        
     manifest_extra = ""
     default_icon = "templates/pygame-icon.png"
     default_presplash = "templates/pygame-presplash.jpg"
