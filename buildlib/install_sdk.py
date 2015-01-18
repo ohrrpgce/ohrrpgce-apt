@@ -71,13 +71,13 @@ def unpack_sdk(interface):
         interface.terms("http://developer.android.com/sdk/terms.html", "Do you accept the Android SDK Terms and Conditions?")
         
     if plat.windows:        
-        archive = "android-sdk_r20-windows.zip"
+        archive = "android-sdk_r24.0.2-windows.zip"
         unpacked = "android-sdk-windows"
     elif plat.macintosh:
-        archive = "android-sdk_r20-macosx.zip"        
+        archive = "android-sdk_r24.0.2-macosx.zip"        
         unpacked = "android-sdk-macosx"
     elif plat.linux:
-        archive = "android-sdk_r20-linux.tgz"
+        archive = "android-sdk_r24.0.2-linux.tgz"
         unpacked = "android-sdk-linux"
     
     url = "http://dl.google.com/android/" + archive
