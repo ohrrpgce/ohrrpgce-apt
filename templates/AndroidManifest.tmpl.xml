@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" 
+          package="{{config.package}}"
+          android:versionCode="{{config.numeric_version}}"
+          android:versionName="{{config.version}}"
+          android:installLocation="auto"
+          >
+    <application android:debuggable="true"
+                 android:icon="@drawable/icon"
+                 android:label="@string/appName"
+                 >
+        <activity android:alwaysRetainTaskState="true"
+                  android:label="@string/appName"
+                  android:launchMode="singleInstance"
+                  android:name="com.hamsterrepublic.game.MainActivity"
+                  android:screenOrientation="landscape"
+                  android:windowSoftInputMode="adjustPan"
+                  >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="tv.ouya.intent.category.GAME"/>
+            </intent-filter>
+        </activity>
+    </application>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+    <supports-screens android:largeScreens="true" android:normalScreens="true" android:smallScreens="true"/>
+</manifest>
