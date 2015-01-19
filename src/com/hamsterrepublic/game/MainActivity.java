@@ -1,7 +1,7 @@
 /*
 Simple DirectMedia Layer
-Java source code (C) 2009-2014 Sergii Pylypenko
-
+Java source code (C) 2009-2012 Sergii Pylypenko
+  
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
 arising from the use of this software.
@@ -9,7 +9,7 @@ arising from the use of this software.
 Permission is granted to anyone to use this software for any purpose,
 including commercial applications, and to alter it and redistribute it
 freely, subject to the following restrictions:
-
+  
 1. The origin of this software must not be misrepresented; you must not
    claim that you wrote the original software. If you use this software
    in a product, an acknowledgment in the product documentation would be
@@ -21,11 +21,11 @@ freely, subject to the following restrictions:
 
 package com.hamsterrepublic.game;
 
+import com.hamsterrepublic.game.R;
+
 import android.app.Activity;
-import android.app.Service;
 import android.content.Context;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.view.MotionEvent;
 import android.view.KeyEvent;
 import android.view.Window;
@@ -40,7 +40,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.graphics.drawable.Drawable;
-import android.graphics.Color;
 import android.content.res.Configuration;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -73,19 +72,31 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Message;
-import android.os.SystemClock;
 import java.util.concurrent.Semaphore;
 import android.content.pm.ActivityInfo;
 import android.view.Display;
-import android.util.DisplayMetrics;
 import android.text.InputType;
 import android.util.Log;
-import android.view.Surface;
-import android.app.ProgressDialog;
-import android.app.KeyguardManager;
-import android.view.ViewTreeObserver;
-import android.graphics.Rect;
-
+import android.util.Base64;
+import tv.ouya.console.api.*;
+import java.util.List;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.security.GeneralSecurityException;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.spec.X509EncodedKeySpec;
+import java.security.KeyFactory;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.Cipher;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity
 {
@@ -93,6 +104,8 @@ public class MainActivity extends Activity
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
+
+		setRequestedOrientation(Globals.HorizontalOrientation ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
 		instance = this;
 		// fullscreen mode
@@ -103,21 +116,24 @@ public class MainActivity extends Activity
 			getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
 					WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+		// Should do nothing on non-OUYA hardware.
+		OuyaController.init(this);
+
+		// Create the OuyaFacade instance
+		initOuyaFacade();
+
 		Log.i("SDL", "libSDL: Creating startup screen");
 		_layout = new LinearLayout(this);
 		_layout.setOrientation(LinearLayout.VERTICAL);
 		_layout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT));
 		_layout2 = new LinearLayout(this);
 		_layout2.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-		loadingDialog = new ProgressDialog(this);
-		loadingDialog.setMessage(getString(R.string.accessing_network));
 
 		final Semaphore loadedLibraries = new Semaphore(0);
 
 		if( Globals.StartupMenuButtonTimeout > 0 )
 		{
 			_btn = new Button(this);
-			_btn.setEnabled(false);
 			_btn.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 			_btn.setText(getResources().getString(R.string.device_change_cfg));
 			class onClickListener implements View.OnClickListener
@@ -129,8 +145,7 @@ public class MainActivity extends Activity
 						setUpStatusLabel();
 						Log.i("SDL", "libSDL: User clicked change phone config button");
 						loadedLibraries.acquireUninterruptibly();
-						setScreenOrientation();
-						SettingsMenu.showConfig(p, false);
+						Settings.showConfig(p, false);
 					}
 			};
 			_btn.setOnClickListener(new onClickListener(this));
@@ -189,11 +204,8 @@ public class MainActivity extends Activity
 						public void run()
 						{
 							Settings.Load(Parent);
-							setScreenOrientation();
 							loaded.release();
 							loadedLibraries.release();
-							if( _btn != null )
-								_btn.setEnabled(true);
 						}
 					}
 					Callback2 cb = new Callback2();
@@ -221,12 +233,6 @@ public class MainActivity extends Activity
 			}
 		};
 		(new Thread(new Callback(this))).start();
-		if( Globals.CreateService )
-		{
-			Intent intent = new Intent(this, DummyService.class);
-			startService(intent);
-		}
-		cloudSave = new CloudSave(this);
 	}
 	
 	public void setUpStatusLabel()
@@ -240,12 +246,11 @@ public class MainActivity extends Activity
 		if( Parent._tv == null )
 		{
 			//Get the display so we can know the screen size
-			Display display = getWindowManager().getDefaultDisplay();
+			Display display = getWindowManager().getDefaultDisplay(); 
 			int width = display.getWidth();
 			int height = display.getHeight();
 			Parent._tv = new TextView(Parent);
-			Parent._tv.setMaxLines(2); // To show some long texts on smaller devices
-			Parent._tv.setMinLines(2); // Otherwise the background picture is getting resized at random, which does not look good
+			Parent._tv.setMaxLines(2);
 			Parent._tv.setText(R.string.init);
 			// Padding is a good idea because if the display device is a TV the edges might be cut off
 			Parent._tv.setPadding((int)(width * 0.1), (int)(height * 0.1), (int)(width * 0.1), 0);
@@ -274,46 +279,35 @@ public class MainActivity extends Activity
 
 	public void initSDL()
 	{
-		setScreenOrientation();
-		updateScreenOrientation();
-		DimSystemStatusBar.get().dim(_videoLayout);
 		(new Thread(new Runnable()
 		{
 			public void run()
 			{
-				if( Globals.AutoDetectOrientation )
-					Globals.HorizontalOrientation = isCurrentOrientationHorizontal();
-				while( isCurrentOrientationHorizontal() != Globals.HorizontalOrientation ||
-						((KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE)).inKeyguardRestrictedInputMode() )
+				//int tries = 30;
+				while( isCurrentOrientationHorizontal() != Globals.HorizontalOrientation )
 				{
-					Log.d("SDL", "libSDL: Waiting for screen orientation to change to " + (Globals.HorizontalOrientation ? "landscape" : "portrait") + ", and for disabling lockscreen mode");
+					Log.i("SDL", "libSDL: Waiting for screen orientation to change - the device is probably in the lockscreen mode");
 					try {
 						Thread.sleep(500);
 					} catch( Exception e ) {}
+					/*
+					tries--;
+					if( tries <= 0 )
+					{
+						Log.i("SDL", "libSDL: Giving up waiting for screen orientation change");
+						break;
+					}
+					*/
 					if( _isPaused )
 					{
 						Log.i("SDL", "libSDL: Application paused, cancelling SDL initialization until it will be brought to foreground");
 						return;
 					}
-					DimSystemStatusBar.get().dim(_videoLayout);
 				}
 				runOnUiThread(new Runnable()
 				{
 					public void run()
 					{
-						// Hide navigation buttons, and sleep a bit so OS will process the event.
-						// Do not check the display size in a loop - we may have several displays of different sizes,
-						// so app may stuck in infinite loop
-						DisplayMetrics dm = new DisplayMetrics();
-						getWindowManager().getDefaultDisplay().getMetrics(dm);
-						if( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT && Globals.ImmersiveMode &&
-							(_videoLayout.getHeight() != dm.widthPixels || _videoLayout.getWidth() != dm.heightPixels) )
-						{
-							DimSystemStatusBar.get().dim(_videoLayout);
-							try {
-								Thread.sleep(300);
-							} catch( Exception e ) {}
-						}
 						initSDLInternal();
 					}
 				});
@@ -328,7 +322,9 @@ public class MainActivity extends Activity
 		Log.i("SDL", "libSDL: Initializing video and SDL application");
 		
 		sdlInited = true;
-		DimSystemStatusBar.get().dim(_videoLayout);
+		if(Globals.UseAccelerometerAsArrowKeys || Globals.AppUsesAccelerometer)
+			getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+					WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 		_videoLayout.removeView(_layout);
 		if( _ad.getView() != null )
 			_videoLayout.removeView(_ad.getView());
@@ -351,24 +347,9 @@ public class MainActivity extends Activity
 			_videoLayout.addView(_ad.getView());
 			_ad.getView().setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.RIGHT));
 		}
+		// Receive keyboard events
 		DimSystemStatusBar.get().dim(_videoLayout);
 		DimSystemStatusBar.get().dim(mGLView);
-
-		Rect r = new Rect();
-		_videoLayout.getWindowVisibleDisplayFrame(r);
-		mGLView.nativeScreenVisibleRect(r.left, r.top, r.right, r.bottom);
-		_videoLayout.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener()
-		{
-			public void onGlobalLayout()
-			{
-				Rect r = new Rect();
-				_videoLayout.getWindowVisibleDisplayFrame(r);
-				int heightDiff = _videoLayout.getRootView().getHeight() - _videoLayout.getHeight(); // Take system bar into consideration
-				int widthDiff = _videoLayout.getRootView().getWidth() - _videoLayout.getWidth(); // Nexus 5 has system bar at the right side
-				mGLView.nativeScreenVisibleRect(r.left + widthDiff, r.top + heightDiff, r.width(), r.height());
-				Log.v("SDL", "Main window visible region changed: " + r.left + ":" + r.top + ":" + r.width() + ":" + r.height() );
-			}
-		});
 	}
 
 	@Override
@@ -449,48 +430,15 @@ public class MainActivity extends Activity
 		}
 		if( mGLView != null )
 			mGLView.exitApp();
+		OuyaFacade.getInstance().shutdown();
 		super.onDestroy();
-		try{
-			Thread.sleep(2000); // The event is sent asynchronously, allow app to save it's state, and call exit() itself.
-		} catch (InterruptedException e) {}
 		System.exit(0);
-	}
-
-	@Override
-	protected void onStart() {
-		super.onStart();
-		cloudSave.onStart();
-	}
-
-	@Override
-	protected void onStop() {
-		super.onStart();
-		cloudSave.onStop();
-	}
-
-	@Override
-	public void onActivityResult(int request, int response, Intent data) {
-		super.onActivityResult(request, response, data);
-		cloudSave.onActivityResult(request, response, data);
 	}
 
 	public void showScreenKeyboardWithoutTextInputField()
 	{
-		if( !keyboardWithoutTextInputShown )
-		{
-			keyboardWithoutTextInputShown = true;
-			_inputManager.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
-			_inputManager.showSoftInput(mGLView, InputMethodManager.SHOW_FORCED);
-			getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
-		}
-		else
-		{
-			keyboardWithoutTextInputShown = false;
-			getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
-			_inputManager.hideSoftInputFromWindow(mGLView.getWindowToken(), 0);
-			DimSystemStatusBar.get().dim(_videoLayout);
-			DimSystemStatusBar.get().dim(mGLView);
-		}
+		_inputManager.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+		_inputManager.showSoftInput(mGLView, InputMethodManager.SHOW_FORCED);
 	}
 
 	public void showScreenKeyboard(final String oldText, boolean sendBackspace)
@@ -507,20 +455,9 @@ public class MainActivity extends Activity
 			MainActivity _parent;
 			boolean sendBackspace;
 			simpleKeyListener(MainActivity parent, boolean sendBackspace) { _parent = parent; this.sendBackspace = sendBackspace; };
-			public boolean onKey(View v, int keyCode, KeyEvent event)
+			public boolean onKey(View v, int keyCode, KeyEvent event) 
 			{
-				if ((event.getAction() == KeyEvent.ACTION_UP) && (
-					keyCode == KeyEvent.KEYCODE_ENTER ||
-					keyCode == KeyEvent.KEYCODE_BACK ||
-					keyCode == KeyEvent.KEYCODE_MENU ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_A ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_B ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_X ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_Y ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_1 ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_2 ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_3 ||
-					keyCode == KeyEvent.KEYCODE_BUTTON_4 ))
+				if ((event.getAction() == KeyEvent.ACTION_UP) && ((keyCode == KeyEvent.KEYCODE_ENTER) || (keyCode == KeyEvent.KEYCODE_BACK)))
 				{
 					_parent.hideScreenKeyboard();
 					return true;
@@ -573,48 +510,18 @@ public class MainActivity extends Activity
 		String hint = _screenKeyboardHintMessage;
 		_screenKeyboard.setHint(hint != null ? hint : getString(R.string.text_edit_click_here));
 		_screenKeyboard.setText(oldText);
-		_screenKeyboard.setSelection(_screenKeyboard.getText().length());
 		_screenKeyboard.setOnKeyListener(new simpleKeyListener(this, sendBackspace));
-		_screenKeyboard.setBackgroundColor(Color.BLACK); // Full opaque - do not show semi-transparent edit box, it's confusing
-		_screenKeyboard.setTextColor(Color.WHITE); // Just to be sure about gamma
-		if( isRunningOnOUYA() )
-			_screenKeyboard.setPadding(100, 100, 100, 100); // Bad bad HDMI TVs all have cropped borders
 		_videoLayout.addView(_screenKeyboard);
 		//_screenKeyboard.setKeyListener(new TextKeyListener(TextKeyListener.Capitalize.NONE, false));
-		_screenKeyboard.setInputType(InputType.TYPE_CLASS_TEXT);
+		_screenKeyboard.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
 		_screenKeyboard.setFocusableInTouchMode(true);
 		_screenKeyboard.setFocusable(true);
 		_screenKeyboard.requestFocus();
-		_inputManager.showSoftInput(_screenKeyboard, InputMethodManager.SHOW_IMPLICIT);
-		getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
-		// Hack to try to force on-screen keyboard
-		final EditText keyboard = _screenKeyboard;
-		keyboard.postDelayed( new Runnable()
-			{
-				public void run()
-				{
-					keyboard.requestFocus();
-					//_inputManager.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
-					_inputManager.showSoftInput(keyboard, InputMethodManager.SHOW_FORCED);
-					// Hack from Stackoverflow, to force text input on Ouya
-					keyboard.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN , 0, 0, 0));
-					keyboard.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_UP , 0, 0, 0));
-					keyboard.postDelayed( new Runnable()
-					{
-						public void run()
-						{
-							keyboard.setSelection(keyboard.getText().length());
-						}
-					}, 100 );
-				}
-			}, 500 );
+		_inputManager.showSoftInput(_screenKeyboard, InputMethodManager.SHOW_FORCED);
 	};
 
 	public void hideScreenKeyboard()
 	{
-		if( keyboardWithoutTextInputShown )
-			showScreenKeyboardWithoutTextInputField();
-
 		if(_screenKeyboard == null)
 			return;
 
@@ -633,17 +540,6 @@ public class MainActivity extends Activity
 		mGLView.setFocusableInTouchMode(true);
 		mGLView.setFocusable(true);
 		mGLView.requestFocus();
-		DimSystemStatusBar.get().dim(_videoLayout);
-		DimSystemStatusBar.get().dim(mGLView);
-
-		_videoLayout.postDelayed( new Runnable()
-			{
-				public void run()
-				{
-					DimSystemStatusBar.get().dim(_videoLayout);
-					DimSystemStatusBar.get().dim(mGLView);
-				}
-			}, 500 );
 	};
 
 	public boolean isScreenKeyboardShown()
@@ -756,34 +652,6 @@ public class MainActivity extends Activity
 		}
 	}
 
-	/*
-	@Override
-	public boolean dispatchKeyEvent(final KeyEvent event)
-	{
-		//Log.i("SDL", "dispatchKeyEvent: action " + event.getAction() + " keycode " + event.getKeyCode() + " unicode " + event.getUnicodeChar() + " getCharacters() " + ((event.getCharacters() != null) ? event.getCharacters() : "none"));
-
-		if( event.getAction() == KeyEvent.ACTION_DOWN )
-			return onKeyDown(event.getKeyCode(), event);
-		if( event.getAction() == KeyEvent.ACTION_UP )
-			return onKeyUp(event.getKeyCode(), event);
-		if( event.getAction() == KeyEvent.ACTION_MULTIPLE && event.getKeyCode() == KeyEvent.KEYCODE_UNKNOWN )
-		{
-			// International text input
-			if( mGLView != null && event.getCharacters() != null )
-			{
-				for(int i = 0; i < event.getCharacters().length(); i++ )
-				{
-					mGLView.nativeKey( event.getKeyCode(), 1, event.getCharacters().codePointAt(i) );
-					mGLView.nativeKey( event.getKeyCode(), 0, event.getCharacters().codePointAt(i) );
-				}
-				return true;
-			}
-		}
-		return true;
-		//return super.dispatchKeyEvent(event);
-	}
-	*/
-
 	@Override
 	public boolean onKeyDown(int keyCode, final KeyEvent event)
 	{
@@ -792,17 +660,24 @@ public class MainActivity extends Activity
 		else
 		if( mGLView != null )
 		{
-			if( mGLView.nativeKey( keyCode, 1, event.getUnicodeChar() ) == 0 )
+			if( mGLView.nativeKey( keyCode, 1, -1 ) == 0 )
 				return super.onKeyDown(keyCode, event);
 		}
+		/*
+		else
+		if( keyCode == KeyEvent.KEYCODE_BACK && downloader != null )
+		{
+			if( downloader.DownloadFailed )
+				System.exit(1);
+			if( !downloader.DownloadComplete )
+				onStop();
+		}
+		*/
 		else
 		if( keyListener != null )
 		{
 			keyListener.onKeyEvent(keyCode);
 		}
-		else
-		if( _btn != null )
-			return _btn.onKeyDown(keyCode, event);
 		return true;
 	}
 	
@@ -814,7 +689,7 @@ public class MainActivity extends Activity
 		else
 		if( mGLView != null )
 		{
-			if( mGLView.nativeKey( keyCode, 0, event.getUnicodeChar() ) == 0 )
+			if( mGLView.nativeKey( keyCode, 0, -1 ) == 0 )
 				return super.onKeyUp(keyCode, event);
 			if( keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU )
 			{
@@ -822,26 +697,7 @@ public class MainActivity extends Activity
 				DimSystemStatusBar.get().dim(mGLView);
 			}
 		}
-		else
-		if( _btn != null )
-			return _btn.onKeyUp(keyCode, event);
 		return true;
-	}
-
-	@Override
-	public boolean onKeyMultiple(int keyCode, int repeatCount, final KeyEvent event)
-	{
-		// International text input
-		if( mGLView != null && event.getCharacters() != null )
-		{
-			for(int i = 0; i < event.getCharacters().length(); i++ )
-			{
-				mGLView.nativeKey( event.getKeyCode(), 1, event.getCharacters().codePointAt(i) );
-				mGLView.nativeKey( event.getKeyCode(), 0, event.getCharacters().codePointAt(i) );
-			}
-			return true;
-		}
-		return false;
 	}
 
 	@Override
@@ -886,35 +742,13 @@ public class MainActivity extends Activity
 		return true;
 	}
 
-	//private Configuration oldConfig = null;
 	@Override
 	public void onConfigurationChanged(Configuration newConfig)
 	{
 		super.onConfigurationChanged(newConfig);
-		updateScreenOrientation();
-		/*
-		if (oldConfig != null)
-		{
-			int diff = newConfig.diff(oldConfig);
-			Log.i("SDL", "onConfigurationChanged(): " + " diff " + diff +
-					((diff & ActivityInfo.CONFIG_ORIENTATION) == ActivityInfo.CONFIG_ORIENTATION ? " orientation" : "") +
-					((diff & ActivityInfo.CONFIG_SCREEN_SIZE) == ActivityInfo.CONFIG_SCREEN_SIZE ? " screen size" : "") +
-					((diff & ActivityInfo.CONFIG_SMALLEST_SCREEN_SIZE) == ActivityInfo.CONFIG_SMALLEST_SCREEN_SIZE ? " smallest screen size" : "") +
-					" " + newConfig.toString());
-		}
-		oldConfig = new Configuration(newConfig);
-		*/
+		// Do nothing here
 	}
-
-	public void updateScreenOrientation()
-	{
-		int rotation = Surface.ROTATION_0;
-		if( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.FROYO )
-			rotation = getWindowManager().getDefaultDisplay().getRotation();
-		AccelerometerReader.gyro.invertedOrientation = ( rotation == Surface.ROTATION_180 || rotation == Surface.ROTATION_270 );
-		//Log.d("SDL", "updateScreenOrientation(): screen orientation: " + rotation + " inverted " + AccelerometerReader.gyro.invertedOrientation);
-	}
-
+	
 	public void setText(final String t)
 	{
 		class Callback implements Runnable
@@ -955,14 +789,6 @@ public class MainActivity extends Activity
 		NotificationManager NotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		NotificationManager.cancel(NOTIFY_ID);
 	}
-
-	@Override
-	public void onNewIntent(Intent i)
-	{
-		Log.i("SDL", "onNewIntent(): " + i.toString());
-		super.onNewIntent(i);
-		setIntent(i);
-	}
 	
 	public void LoadLibraries()
 	{
@@ -976,6 +802,112 @@ public class MainActivity extends Activity
 		{
 			Log.i("SDL", "libSDL: Cannot load GLESv2 lib");
 		}
+
+		// ----- VCMI hack -----
+		String [] binaryZipNames = { "binaries-" + android.os.Build.CPU_ABI + ".zip", "binaries.zip" };
+		for(String binaryZip: binaryZipNames)
+		{
+			try {
+				Log.i("SDL", "libSDL: Trying to extract binaries from assets " + binaryZip);
+				
+				InputStream in = null;
+				try
+				{
+					for( int i = 0; ; i++ )
+					{
+						InputStream in2 = getAssets().open(binaryZip + String.format("%02d", i));
+						if( in == null )
+							in = in2;
+						else
+							in = new SequenceInputStream( in, in2 );
+					}
+				}
+				catch( IOException ee )
+				{
+					try
+					{
+						if( in == null )
+							in = getAssets().open(binaryZip);
+					}
+					catch( IOException eee ) {}
+				}
+
+				if( in == null )
+					throw new RuntimeException("libSDL: Extracting binaries failed, the .apk file packaged incorrectly");
+
+				ZipInputStream zip = new ZipInputStream(in);
+
+				File libDir = getFilesDir();
+				try {
+					libDir.mkdirs();
+				} catch( SecurityException ee ) { };
+				
+				byte[] buf = new byte[16384];
+				while(true)
+				{
+					ZipEntry entry = null;
+					entry = zip.getNextEntry();
+					/*
+					if( entry != null )
+						Log.i("SDL", "Extracting lib " + entry.getName());
+					*/
+					if( entry == null )
+					{
+						Log.i("SDL", "Extracting binaries finished");
+						break;
+					}
+					if( entry.isDirectory() )
+					{
+						File outDir = new File( libDir.getAbsolutePath() + "/" + entry.getName() );
+						if( !(outDir.exists() && outDir.isDirectory()) )
+							outDir.mkdirs();
+						continue;
+					}
+
+					OutputStream out = null;
+					String path = libDir.getAbsolutePath() + "/" + entry.getName();
+					try {
+						File outDir = new File( path.substring(0, path.lastIndexOf("/") ));
+						if( !(outDir.exists() && outDir.isDirectory()) )
+							outDir.mkdirs();
+					} catch( SecurityException eeeeeee ) { };
+
+					try {
+						CheckedInputStream check = new CheckedInputStream( new FileInputStream(path), new CRC32() );
+						while( check.read(buf, 0, buf.length) > 0 ) {};
+						check.close();
+						if( check.getChecksum().getValue() != entry.getCrc() )
+						{
+							File ff = new File(path);
+							ff.delete();
+							throw new Exception();
+						}
+						Log.i("SDL", "File '" + path + "' exists and passed CRC check - not overwriting it");
+						continue;
+					} catch( Exception eeeeee ) { }
+
+					Log.i("SDL", "Saving to file '" + path + "'");
+
+					out = new FileOutputStream( path );
+					int len = zip.read(buf);
+					while (len >= 0)
+					{
+						if(len > 0)
+							out.write(buf, 0, len);
+						len = zip.read(buf);
+					}
+
+					out.flush();
+					out.close();
+					Settings.nativeChmod(path, 0755);
+				}
+			}
+			catch ( Exception eee )
+			{
+				//Log.i("SDL", "libSDL: Error: " + eee.toString());
+			}
+		}
+		// ----- VCMI hack -----
 
 		// Load all libraries
 		try
@@ -1096,147 +1028,38 @@ public class MainActivity extends Activity
 			}
 		}
 
-		String [] binaryZipNames = { "binaries-" + android.os.Build.CPU_ABI + ".zip", "binaries-" + android.os.Build.CPU_ABI2 + ".zip", "binaries.zip" };
-		if ( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP )
-			binaryZipNames = new String[] { "binaries-" + android.os.Build.CPU_ABI + "-pie.zip", "binaries-" + android.os.Build.CPU_ABI2 + "-pie.zip", "binaries-" + android.os.Build.CPU_ABI + ".zip", "binaries-" + android.os.Build.CPU_ABI2 + ".zip", "binaries.zip" };
-		for(String binaryZip: binaryZipNames)
-		{
-			try {
-				Log.i("SDL", "libSDL: Trying to extract binaries from assets " + binaryZip);
-				
-				InputStream in = null;
-				try
-				{
-					for( int i = 0; ; i++ )
-					{
-						InputStream in2 = getAssets().open(binaryZip + String.format("%02d", i));
-						if( in == null )
-							in = in2;
-						else
-							in = new SequenceInputStream( in, in2 );
-					}
-				}
-				catch( IOException ee )
-				{
-					try
-					{
-						if( in == null )
-							in = getAssets().open(binaryZip);
-					}
-					catch( IOException eee ) {}
-				}
 
-				if( in == null )
-					throw new RuntimeException("libSDL: Extracting binaries failed, the .apk file packaged incorrectly");
-
-				ZipInputStream zip = new ZipInputStream(in);
-
-				File libDir = getFilesDir();
-				try {
-					libDir.mkdirs();
-				} catch( SecurityException ee ) { };
-				
-				byte[] buf = new byte[16384];
-				while(true)
-				{
-					ZipEntry entry = null;
-					entry = zip.getNextEntry();
-					/*
-					if( entry != null )
-						Log.i("SDL", "Extracting lib " + entry.getName());
-					*/
-					if( entry == null )
-					{
-						Log.i("SDL", "Extracting binaries finished");
-						break;
-					}
-					if( entry.isDirectory() )
-					{
-						File outDir = new File( libDir.getAbsolutePath() + "/" + entry.getName() );
-						if( !(outDir.exists() && outDir.isDirectory()) )
-							outDir.mkdirs();
-						continue;
-					}
-
-					OutputStream out = null;
-					String path = libDir.getAbsolutePath() + "/" + entry.getName();
-					try {
-						File outDir = new File( path.substring(0, path.lastIndexOf("/") ));
-						if( !(outDir.exists() && outDir.isDirectory()) )
-							outDir.mkdirs();
-					} catch( SecurityException eeeeeee ) { };
-
-					try {
-						CheckedInputStream check = new CheckedInputStream( new FileInputStream(path), new CRC32() );
-						while( check.read(buf, 0, buf.length) > 0 ) {};
-						check.close();
-						if( check.getChecksum().getValue() != entry.getCrc() )
-						{
-							File ff = new File(path);
-							ff.delete();
-							throw new Exception();
-						}
-						Log.i("SDL", "File '" + path + "' exists and passed CRC check - not overwriting it");
-						continue;
-					} catch( Exception eeeeee ) { }
-
-					Log.i("SDL", "Saving to file '" + path + "'");
-
-					out = new FileOutputStream( path );
-					int len = zip.read(buf);
-					while (len >= 0)
-					{
-						if(len > 0)
-							out.write(buf, 0, len);
-						len = zip.read(buf);
-					}
-
-					out.flush();
-					out.close();
-					Settings.nativeChmod(path, 0755);
-					//String chmod[] = { "/system/bin/chmod", "0755", path };
-					//Runtime.getRuntime().exec(chmod).waitFor();
-				}
-				break;
-			}
-			catch ( Exception eee )
-			{
-				//Log.i("SDL", "libSDL: Error: " + eee.toString());
-			}
-		}
 	};
 
 	public static void LoadApplicationLibrary(final Context context)
 	{
-		Settings.nativeChdir(Globals.DataDir);
-		for(String l : Globals.AppMainLibraries)
+		String libs[] = { "application", "sdl_main" };
+		try
 		{
-			try
+			for(String l : libs)
 			{
-				String libname = System.mapLibraryName(l);
-				File libpath = new File(context.getFilesDir().getAbsolutePath() + "/../lib/" + libname);
-				Log.i("SDL", "libSDL: loading lib " + libpath.getAbsolutePath());
-				System.load(libpath.getPath());
-			}
-			catch( UnsatisfiedLinkError e )
-			{
-				Log.i("SDL", "libSDL: error loading lib " + l + ": " + e.toString());
-				try
-				{
-					String libname = System.mapLibraryName(l);
-					File libpath = new File(context.getFilesDir().getAbsolutePath() + "/" + libname);
-					Log.i("SDL", "libSDL: loading lib " + libpath.getAbsolutePath());
-					System.load(libpath.getPath());
-				}
-				catch( UnsatisfiedLinkError ee )
-				{
-					Log.i("SDL", "libSDL: error loading lib " + l + ": " + ee.toString());
-					System.loadLibrary(l);
-				}
+				System.loadLibrary(l);
 			}
 		}
-		Log.v("SDL", "libSDL: loaded all libraries");
-		ApplicationLibraryLoaded = true;
+		catch ( UnsatisfiedLinkError e )
+		{
+			Log.i("SDL", "libSDL: error loading lib: " + e.toString());
+			try
+			{
+				for(String l : libs)
+				{
+					String libname = System.mapLibraryName(l);
+					File libpath = new File(context.getFilesDir(), libname);
+					Log.i("SDL", "libSDL: loading lib " + libpath.getPath());
+					System.load(libpath.getPath());
+					libpath.delete();
+				}
+			}
+			catch ( UnsatisfiedLinkError ee )
+			{
+				Log.i("SDL", "libSDL: error loading lib: " + ee.toString());
+			}
+		}
 	}
 
 	public int getApplicationVersion()
@@ -1250,48 +1073,285 @@ public class MainActivity extends Activity
 		return 0;
 	}
 
-	public boolean isRunningOnOUYA()
-	{
-		try {
-			PackageInfo packageInfo = getPackageManager().getPackageInfo("tv.ouya", 0);
-			return true;
-		} catch (PackageManager.NameNotFoundException e) {
-		}
-		return Globals.OuyaEmulation;
-	}
-
 	public boolean isCurrentOrientationHorizontal()
 	{
-		if (Globals.AutoDetectOrientation)
-		{
-			// Less reliable way to detect orientation, but works with multiwindow
-			View topView = getWindow().peekDecorView();
-			if (topView != null)
-			{
-				//Log.d("SDL", "isCurrentOrientationHorizontal(): decorview: " + topView.getWidth() + "x" + topView.getHeight());
-				return topView.getWidth() >= topView.getHeight();
-			}
-		}
 		Display getOrient = getWindowManager().getDefaultDisplay();
 		return getOrient.getWidth() >= getOrient.getHeight();
 	}
 
-	void setScreenOrientation()
+	public void initOuyaFacade()
 	{
-		if( !Globals.AutoDetectOrientation && getIntent().getBooleanExtra(RestartMainActivity.ACTIVITY_AUTODETECT_SCREEN_ORIENTATION, false) )
-			Globals.AutoDetectOrientation = true;
-		if( Globals.AutoDetectOrientation )
-		{
-			if( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2 )
-				setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_USER);
-			else
-				setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
-			return;
+		//Init with a dummy id. If purchases are going to happen, we will re-init later on.
+		String DEVELOPER_ID = "00000000-0000-0000-0000-000000000000";
+		OuyaFacade.getInstance().init(this, DEVELOPER_ID);
+	}
+
+	//Populated by making a request, used both to make the request and to decode it in the listener
+	PublicKey OUYAPublicKey;
+	//Cleared when you make a request, Set when a purchase request finishes
+	int OUYAPurchaseRequestReadyFlag = 0;
+	//Used for synchonizing puchase requests between the requester and the listener callback
+	private final Map<String, Product> OUYAOutstandingPurchaseRequests = new HashMap<String, Product>();
+
+	String OUYAPriceList = "";
+	int OUYAPriceListReady = 0;
+	int OUYAPurchaseReady = 0;
+	int OUYAPurchaseSuccess = 0;
+	
+	//For chaining together two Listener callback delays :P
+	boolean wantDoOUYAPurchaseRequest = false;
+
+	//For returning the list of already-purchased receipts
+	int OUYAReceiptsReady = 0;
+	String OUYAReceiptsList = "";
+
+	OuyaResponseListener<ArrayList<Product>> OUYAproductListListener =
+	new CancelIgnoringOuyaResponseListener<ArrayList<Product>>()
+	{
+		@Override
+		public void onSuccess(ArrayList<Product> products) {
+			for(Product p : products) {
+				if(wantDoOUYAPurchaseRequest) {
+					//If this pricelist was requested by OUYAPurchaseRequest
+					//then trigger a purchase request for the first product
+					wantDoOUYAPurchaseRequest = false;
+					try {
+						DoOUYAPurchaseRequest(p);
+					} catch (Exception exc) {
+						OUYAPurchaseReady = 1;
+						OUYAPurchaseSuccess = 0;
+					}
+				}
+				Log.d("Product", p.getName() + " costs " + p.getPriceInCents());
+				OUYAPriceList += p.getName() + "\t" + p.getPriceInCents() + "\n";
+			}
+			OUYAPriceListReady = 1;
 		}
-		if( android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.GINGERBREAD )
-			setRequestedOrientation(Globals.HorizontalOrientation ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-		else
-			setRequestedOrientation(Globals.HorizontalOrientation ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
+		@Override
+		public void onFailure(int errorCode, String errorMessage, Bundle errorBundle)
+		{
+			Log.d("Error", errorMessage);
+			OUYAPriceListReady = 1;
+			OUYAPurchaseReady = 1;
+		}
+	};
+
+	OuyaResponseListener<String> OUYApurchaseListener =
+	new OuyaResponseListener<String>() {
+		@Override
+		public void onSuccess(String result) {
+			try {
+				OuyaEncryptionHelper helper = new OuyaEncryptionHelper();
+
+				JSONObject response = new JSONObject(result);
+
+				String id = helper.decryptPurchaseResponse(response, OUYAPublicKey);
+				Product storedProduct;
+				synchronized (OUYAOutstandingPurchaseRequests) {
+					storedProduct = OUYAOutstandingPurchaseRequests.remove(id);
+				}
+				if(storedProduct == null) {
+					onFailure(
+						OuyaErrorCodes.THROW_DURING_ON_SUCCESS, 
+						"No purchase outstanding for the given purchase request",
+						Bundle.EMPTY);
+					return;
+				}
+
+				Log.d("SDL", "OUYA Purchase complete: " + storedProduct.getName());
+				OUYAPurchaseSuccess = 1;
+			} catch (Exception e) {
+				Log.e("Purchase", "OUYA Purchase failed.", e);
+			}
+			OUYAPurchaseReady = 1;
+		}
+
+		@Override
+		public void onCancel() {
+			Log.d("SDL", "OUYA Purchase cancelled by user");
+			OUYAPurchaseSuccess = 0;
+			OUYAPurchaseReady = 1;
+		}
+
+		@Override
+		public void onFailure(int errorCode, String errorMessage, Bundle errorBundle) {
+			Log.d("SDL", errorMessage);
+			OUYAPurchaseSuccess = 0;
+			OUYAPurchaseReady = 1;
+		}
+	};
+
+	CancelIgnoringOuyaResponseListener<String> OUYAReceiptListListener =
+	new CancelIgnoringOuyaResponseListener<String>() {
+		@Override
+		public void onSuccess(String receiptResponse) {
+			OuyaEncryptionHelper helper = new OuyaEncryptionHelper();
+			List<Receipt> receipts = null;
+			try {
+				JSONObject response = new JSONObject(receiptResponse);
+				receipts = helper.decryptReceiptResponse(response, OUYAPublicKey);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+			for (Receipt r : receipts) {
+				Log.d("SDL", "Found OUYA Receipt for: " + r.getIdentifier());
+				OUYAReceiptsList += r.getIdentifier() + "\n";
+			}
+			OUYAReceiptsReady = 1;
+		}
+
+		@Override
+		public void onFailure(int errorCode, String errorMessage, Bundle errorBundle) {
+			Log.d("SDL", "OUYA Receipt check failed: " + errorMessage);
+			OUYAReceiptsList = "";
+			OUYAReceiptsReady = 1;
+		}
+	};
+
+	public void setOUYADeveloperId(String devId)
+	{
+		OuyaFacade.getInstance().shutdown();
+		OuyaFacade.getInstance().init(this, devId);
+	}
+
+	public void OUYAPurchaseRequest(String identifier, byte[] keyDerBytes)
+	{
+		updateOUYAKeyDer(keyDerBytes);
+		
+		OUYAPurchaseReady = 0;
+		OUYAPurchaseSuccess = 0;
+		
+		//Requesting a PriceList is the only way I have figured out yet
+		//to get a Product object from an identifier string.
+		wantDoOUYAPurchaseRequest = true;
+		requestOUYAPriceList(identifier);
+	}
+
+	void DoOUYAPurchaseRequest(Product product)
+		throws GeneralSecurityException, UnsupportedEncodingException, JSONException
+	{
+		SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
+		
+		// This is an ID that allows you to associate a successful purchase with
+		// it's original request. The server does nothing with this string except
+		// pass it back to you, so it only needs to be unique within this instance
+		// of your app to allow you to pair responses with requests.
+		String uniqueId = Long.toHexString(sr.nextLong());
+		
+		JSONObject purchaseRequest = new JSONObject();
+		purchaseRequest.put("uuid", uniqueId);
+		purchaseRequest.put("identifier", product.getIdentifier());
+		String purchaseRequestJson = purchaseRequest.toString();
+		
+		byte[] keyBytes = new byte[16];
+		sr.nextBytes(keyBytes);
+		SecretKey key = new SecretKeySpec(keyBytes, "AES");
+		
+		byte[] ivBytes = new byte[16];
+		sr.nextBytes(ivBytes);
+		IvParameterSpec iv = new IvParameterSpec(ivBytes);
+		
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "BC");
+		cipher.init(Cipher.ENCRYPT_MODE, key, iv);
+		byte[] payload = cipher.doFinal(purchaseRequestJson.getBytes("UTF-8"));
+		
+		cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding", "BC");
+		cipher.init(Cipher.ENCRYPT_MODE, OUYAPublicKey);
+		byte[] encryptedKey = cipher.doFinal(keyBytes);
+		
+		Purchasable purchasable = new Purchasable(
+				product.getIdentifier(),
+				Base64.encodeToString(encryptedKey, Base64.NO_WRAP),
+				Base64.encodeToString(ivBytes, Base64.NO_WRAP),
+				Base64.encodeToString(payload, Base64.NO_WRAP) );
+
+		synchronized (OUYAOutstandingPurchaseRequests) {
+			OUYAOutstandingPurchaseRequests.put(uniqueId, product);
+		}
+		OuyaFacade.getInstance().requestPurchase(purchasable, OUYApurchaseListener);
+	}
+
+	void updateOUYAKeyDer(byte[] keyDerBytes)
+	{
+		// Create a PublicKey object from the key.der data downloaded from the developer portal.
+		try {
+			// Create a public key
+			X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyDerBytes);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+			OUYAPublicKey = keyFactory.generatePublic(keySpec);
+		} catch (Exception e) {
+			Log.e("SDL", "Unable to create OUYA encryption key", e);
+		}
+	}
+
+	public int OUYAPurchaseIsReady()
+	{
+		if(!isRunningOnOUYA())
+		{
+			//Always true on non-OUYA hardware so we can skip any time-out and fail immediately
+			return 1;
+		}
+		return OUYAPurchaseReady;
+	}
+
+	public int OUYAPurchaseSucceeded()
+	{
+		return OUYAPurchaseSuccess;
+	}
+
+	public void OUYAReceiptsRequest(byte[] keyDerBytes)
+	{
+		updateOUYAKeyDer(keyDerBytes);
+		
+		OUYAReceiptsReady = 0;
+		OUYAReceiptsList = "";
+		
+		OuyaFacade.getInstance().requestReceipts(OUYAReceiptListListener);
+	}
+
+	public int OUYAReceiptsAreReady()
+	{
+		if(!isRunningOnOUYA())
+		{
+			//Always true on non-OUYA hardware so we can skip any time-out and fail immediately
+			return 1;
+		}
+		return OUYAReceiptsReady;
+	}
+
+	public String OUYAReceiptsResult()
+	{
+		return OUYAReceiptsList;
+	}
+
+	public void requestOUYAPriceList(String identifiers)
+	{
+		List<String> ids = Arrays.asList(identifiers.split("\n"));
+		List<Purchasable> prodList = new ArrayList<Purchasable>();
+		for (String id: ids)
+		{
+			prodList.add(new Purchasable(id));
+		}
+		OUYAPriceList = "";
+		OUYAPriceListReady = 0;
+		OuyaFacade.getInstance().requestProductList(prodList, OUYAproductListListener);
+	}
+
+	public int isOUYAPriceListReady()
+	{
+		return OUYAPriceListReady;
+	}
+
+	public String getOUYAPriceList()
+	{
+		return OUYAPriceList;
+	}
+
+	public boolean isRunningOnOUYA()
+	{
+		boolean result = OuyaFacade.getInstance().isRunningOnOUYASupportedHardware();
+		return result;
 	}
 
 	public FrameLayout getVideoLayout() { return _videoLayout; }
@@ -1307,28 +1367,13 @@ public class MainActivity extends Activity
 	private LinearLayout _layout = null;
 	private LinearLayout _layout2 = null;
 	private Advertisement _ad = null;
-	public CloudSave cloudSave = null;
-	public ProgressDialog loadingDialog = null;
 
 	private FrameLayout _videoLayout = null;
 	private EditText _screenKeyboard = null;
 	private String _screenKeyboardHintMessage = null;
-	static boolean keyboardWithoutTextInputShown = false;
 	private boolean sdlInited = false;
-	public static boolean ApplicationLibraryLoaded = false;
-
-	public interface TouchEventsListener
-	{
-		public void onTouchEvent(final MotionEvent ev);
-	}
-
-	public interface KeyEventsListener
-	{
-		public void onKeyEvent(final int keyCode);
-	}
-
-	public TouchEventsListener touchListener = null;
-	public KeyEventsListener keyListener = null;
+	public Settings.TouchEventsListener touchListener = null;
+	public Settings.KeyEventsListener keyListener = null;
 	boolean _isPaused = false;
 	private InputMethodManager _inputManager = null;
 
@@ -1354,13 +1399,15 @@ abstract class DimSystemStatusBar
 		{
 			private static final DimSystemStatusBarHoneycomb sInstance = new DimSystemStatusBarHoneycomb();
 		}
-		public void dim(final View view)
-		{
-			if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT && Globals.ImmersiveMode)
-				// Immersive mode, I already hear curses when system bar reappears mid-game from the slightest swipe at the bottom of the screen
-				view.setSystemUiVisibility(android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | android.view.View.SYSTEM_UI_FLAG_FULLSCREEN);
-			else
-				view.setSystemUiVisibility(android.view.View.STATUS_BAR_HIDDEN);
+	    public void dim(final View view)
+	    {
+	         /*
+	         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+	            // ICS has the same constant redefined with a different name.
+	            hiddenStatusCode = android.view.View.SYSTEM_UI_FLAG_LOW_PROFILE;
+	         }
+	         */
+	         view.setSystemUiVisibility(android.view.View.STATUS_BAR_HIDDEN);
 	   }
 	}
 	private static class DimSystemStatusBarDummy extends DimSystemStatusBar
@@ -1407,27 +1454,5 @@ abstract class SetLayerType
 		public void setLayerType(final View view)
 		{
 		}
-	}
-}
-
-class DummyService extends Service
-{
-	public DummyService()
-	{
-		super();
-	}
-	@Override
-	public int onStartCommand(Intent intent, int flags, int startId)
-	{
-		return Service.START_STICKY;
-	}
-	@Override
-	public void onDestroy()
-	{
-	}
-	@Override
-	public IBinder onBind(Intent intent)
-	{
-		return null;
 	}
 }

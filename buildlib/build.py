@@ -322,12 +322,13 @@ def build(iface, directory, commands):
         
     iface.info("Updating source code.")
     
-    #edit_file("src/org/renpy/android/DownloaderActivity.java", r'import .*\.R;', 'import {}.R;'.format(config.package))
+    for srcfile in ('MainActivity', 'DataDownloader', 'Settings',):
+        edit_file("src/com/hamsterrepublic/game/%s.java" % srcfile, r'import .*\.R;', 'import {}.R;'.format(config.package))
     
     iface.info("Updating build files.")
         
     # Update the project to a recent version.
-    subprocess.call([plat.android, "update", "project", "-p", '.', '-t', 'android-15', '-n', versioned_name,
+    subprocess.call([plat.android, "update", "project", "-p", '.', '-t', 'android-17', '-n', versioned_name,
         "--library", "android-sdk/extras/google/play_licensing/library",
         "--library", "android-sdk/extras/google/google_play_services/libproject/google-play-services_lib",
         #"--library", "android-sdk/extras/google/play_apk_expansion/downloader_library",

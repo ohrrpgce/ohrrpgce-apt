@@ -129,7 +129,7 @@ def get_packages(interface):
     packages = [ ]
 
     if not os.path.exists("android-sdk/platforms/android-21"):
-        packages.append("android-21")
+        packages.append("android-17")
 
     if not os.path.exists("android-sdk/platform-tools"):
         packages.append("platform-tools")

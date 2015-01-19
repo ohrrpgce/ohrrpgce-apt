@@ -1,7 +1,7 @@
 /*
 Simple DirectMedia Layer
-Java source code (C) 2009-2014 Sergii Pylypenko
-
+Java source code (C) 2009-2012 Sergii Pylypenko
+  
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
 arising from the use of this software.
@@ -9,7 +9,7 @@ arising from the use of this software.
 Permission is granted to anyone to use this software for any purpose,
 including commercial applications, and to alter it and redistribute it
 freely, subject to the following restrictions:
-
+  
 1. The origin of this software must not be misrepresented; you must not
    claim that you wrote the original software. If you use this software
    in a product, an acknowledgment in the product documentation would be
@@ -67,8 +67,7 @@ class AccelerometerReader implements SensorEventListener
 			Log.i("SDL", "libSDL: starting accelerometer");
 			_manager.registerListener(this, _manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
 		}
-		if( (Globals.AppUsesGyroscope || Globals.MoveMouseWithGyroscope) &&
-			_manager != null && _manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null )
+		if( Globals.AppUsesGyroscope && _manager != null && _manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null )
 		{
 			Log.i("SDL", "libSDL: starting gyroscope");
 			_manager.registerListener(gyro, _manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), SensorManager.SENSOR_DELAY_GAME);
@@ -82,39 +81,24 @@ class AccelerometerReader implements SensorEventListener
 		else
 			nativeAccelerometer(event.values[0], event.values[1], event.values[2]); // TODO: not tested!
 	}
-
 	public void onAccuracyChanged(Sensor s, int a)
 	{
 	}
 
 	static class GyroscopeListener implements SensorEventListener
 	{
-		public float x1 = 0.0f, x2 = 0.0f, xc = 0.0f, y1 = 0.0f, y2 = 0.0f, yc = 0.0f, z1 = 0.0f, z2 = 0.0f, zc = 0.0f;
-		public boolean invertedOrientation = false;
+		public float x1, x2, xc, y1, y2, yc, z1, z2, zc;
 		public GyroscopeListener()
 		{
 		}
 		public void onSensorChanged(SensorEvent event)
 		{
+			// TODO: vertical orientation
+			//if( Globals.HorizontalOrientation )
 			if( event.values[0] < x1 || event.values[0] > x2 ||
 				event.values[1] < y1 || event.values[1] > y2 ||
 				event.values[2] < z1 || event.values[2] > z2 )
-			{
-				if( Globals.HorizontalOrientation )
-				{
-					if( invertedOrientation )
-						nativeGyroscope(-(event.values[0] - xc), -(event.values[1] - yc), event.values[2] - zc);
-					else
-						nativeGyroscope(event.values[0] - xc, event.values[1] - yc, event.values[2] - zc);
-				}
-				else
-				{
-					if( invertedOrientation )
-						nativeGyroscope(-(event.values[1] - yc), event.values[0] - xc, event.values[2] - zc);
-					else
-						nativeGyroscope(event.values[1] - yc, -(event.values[0] - xc), event.values[2] - zc);
-				}
-			}
+				nativeGyroscope(event.values[0] - xc, event.values[1] - yc, event.values[2] - zc);
 		}
 		public void onAccuracyChanged(Sensor s, int a)
 		{
