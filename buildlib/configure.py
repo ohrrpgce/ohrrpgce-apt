@@ -1,11 +1,13 @@
 import json
 import os
+from lumps import getlump
 
 class Configuration(object):
     
     def __init__(self, directory):
     
         self.package = None
+        self.rpgfile = None
         self.name = None
         self.icon_name = None    
         self.version = None
@@ -45,10 +47,23 @@ def set_version(config, value):
         config.numeric_version = str(v)
     except:
         pass
-    
+
+def get_gamename(rpgfile):
+    browse = getlump(rpgfile, 'BROWSE.TXT')
+    size = ord(browse.read(1))
+    browse.read(1)
+    return browse.read(size)
+
 def configure(interface, directory):
 
     config = Configuration(directory)
+    config.rpgfile = os.listdir(directory)[0]
+    if config.rpgfile.split('.')[-1] not in ('rpg', 'RPG',):
+        print "Please make sure that your project directory only contains your .RPG file."
+        sys.exit(1)
+    print "Found RPG file: %s" % config.rpgfile
+    config.name = get_gamename(os.path.join(directory, config.rpgfile))
+    print "Found RPG Game file: %s" % config.name
     config.name = interface.input("""What is the full name of your game? This name will appear in the list of installed applications.""", config.name)
     
     if config.icon_name is None:
