@@ -332,7 +332,7 @@ def build(iface, directory, commands):
     # Update the project to a recent version.
     subprocess.call([plat.android, "update", "project", "-p", '.', '-t', 'android-17', '-n', versioned_name,
         "--library", "android-sdk/extras/google/play_licensing/library",
-        "--library", "android-sdk/extras/google/google_play_services/libproject/google-play-services_lib",
+        #"--library", "android-sdk/extras/google/google_play_services/libproject/google-play-services_lib",
         #"--library", "android-sdk/extras/google/play_apk_expansion/downloader_library",
         ])
 
