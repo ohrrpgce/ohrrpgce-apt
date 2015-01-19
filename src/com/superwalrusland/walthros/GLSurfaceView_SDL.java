@@ -17,7 +17,7 @@
 /* This is GLSurfaceView class ripped out of Android 2.1 sources,
    fixed with a hammer to work with libSDL port */
 
-package com.hamsterrepublic.game;
+package com.superwalrusland.walthros;
 
 import java.io.Writer;
 import java.util.ArrayList;

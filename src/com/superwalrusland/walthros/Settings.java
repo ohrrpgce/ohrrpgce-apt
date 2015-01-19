@@ -19,9 +19,9 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-package com.hamsterrepublic.game;
+package com.superwalrusland.walthros;
 
-import com.hamsterrepublic.game.R;
+import com.superwalrusland.walthros.R;
 
 import android.app.Activity;
 import android.content.Context;

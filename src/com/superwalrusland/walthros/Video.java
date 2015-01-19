@@ -19,7 +19,7 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 */
 
-package com.hamsterrepublic.game;
+package com.superwalrusland.walthros;
 
 import javax.microedition.khronos.opengles.GL10;
 import javax.microedition.khronos.opengles.GL11;

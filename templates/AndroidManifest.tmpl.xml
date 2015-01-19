@@ -12,7 +12,7 @@
         <activity android:alwaysRetainTaskState="true"
                   android:label="@string/appName"
                   android:launchMode="singleInstance"
-                  android:name="com.hamsterrepublic.game.MainActivity"
+                  android:name="com.superwalrusland.walthros.MainActivity"
                   android:screenOrientation="landscape"
                   android:windowSoftInputMode="adjustPan"
                   >

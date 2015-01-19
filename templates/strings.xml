@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">{{config.app_name}}</string>
-    <string name="appName">{{config.app_name}}</string>
+    <string name="app_name">{{config.name}}</string>
+    <string name="appName">{{config.icon_name}}</string>
     <string name="init">Initializing</string>
     <string name="please_wait">Please wait while data is being downloaded</string>
     <string name="device_config">Device configuration</string>
