@@ -59,11 +59,10 @@ def configure(interface, directory):
     config = Configuration(directory)
     config.rpgfile = os.listdir(directory)[0]
     if config.rpgfile.split('.')[-1] not in ('rpg', 'RPG',):
-        print "Please make sure that your project directory only contains your .RPG file."
-        sys.exit(1)
-    print "Found RPG file: %s" % config.rpgfile
+        interface.fail("Please make sure that your project directory only contains your .RPG file.")
+    interface.info("Found RPG file: %s" % config.rpgfile)
     config.name = get_gamename(os.path.join(directory, config.rpgfile))
-    print "Found RPG Game file: %s" % config.name
+    interface.info("Found RPG Game file: %s" % config.name)
     config.name = interface.input("""What is the full name of your game? This name will appear in the list of installed applications.""", config.name)
     
     if config.icon_name is None:

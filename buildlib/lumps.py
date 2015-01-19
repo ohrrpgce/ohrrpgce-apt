@@ -1,6 +1,6 @@
 from struct import *
 from cStringIO import StringIO
-import os
+import os, zipfile
 
 def getdata(f):
     tmp = ""
@@ -16,9 +16,10 @@ def getlong(f):
     d2 = f.read(2)
     return unpack('i',d2+d1)[0]
 
-def unlump(game, dest):
-    rpgdir = '%s/%s.rpgdir' % (dest, game.split('.')[0])
-    os.mkdir(rpgdir)
+def lump2zip(game, dest):
+    rpgdir = '%s.rpgdir' % os.path.basename(game).split('.')[0]
+    zf = zipfile.ZipFile(os.path.join(dest, 'gamedata.zip'), 'w')
+    zf.writestr('ohrrpgce_arguments.txt', rpgdir)
     with open(game,'rb') as f:
         while 1:
             try:
@@ -26,7 +27,7 @@ def unlump(game, dest):
             except:
                 break
             size = getlong(f)
-            open('%s/%s' % (rpgdir,fi),'wb').write(f.read(size))
+            zf.writestr('%s/%s' % (rpgdir,fi), f.read(size))
 
 def getlump(game, lump):
     with open(game,'rb') as f:

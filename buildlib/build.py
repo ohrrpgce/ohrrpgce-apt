@@ -17,6 +17,8 @@ import configure
 
 import plat
 
+from lumps import lump2zip
+
 # If we have python 2.7, record the path to it.
 if sys.version_info.major == 2 and sys.version_info.minor == 7:
     PYTHON = sys.executable
@@ -339,6 +341,7 @@ def build(iface, directory, commands):
 
     if os.path.isdir("assets"):
         shutil.rmtree("assets")
+    os.mkdir("assets")
     
     if config.expansion:
         iface.info("Creating expansion file.")
@@ -377,7 +380,18 @@ def build(iface, directory, commands):
         private_dirs.append("engine-private")
 
     #make_tar("assets/private.mp3", private_dirs)
-    shutil.copytree(directory, 'assets')
+    #shutil.copytree(directory, 'assets')
+    lump2zip(os.path.join(directory, config.rpgfile), 'assets')
+    cnt = 0
+    with open(os.path.join('assets','gamedata.zip'),'rb') as gamedata:
+        while 1:
+            buf = gamedata.read(1000000)
+            cntS = '0%s' % cnt if cnt < 10 else '%s' % cnt
+            open(os.path.join('assets','gamedata.zip%s' % cntS),'wb').write(buf)
+            if len(buf) < 1000000:
+                break
+            cnt+=1
+    os.unlink(os.path.join('assets','gamedata.zip'))
     
     if public_dir is not None:
         iface.info("Packaging external data.")
