@@ -57,9 +57,12 @@ def get_gamename(rpgfile):
 def configure(interface, directory):
 
     config = Configuration(directory)
-    config.rpgfile = os.listdir(directory)[0]
-    if config.rpgfile.split('.')[-1] not in ('rpg', 'RPG',):
-        interface.fail("Please make sure that your project directory only contains your .RPG file.")
+    for filename in os.listdir(directory):
+        if filename.split('.')[-1].lower() == 'rpg':
+            config.rpgfile = filename
+            break
+    else:
+        interface.fail("Please make sure that your project directory contains your .RPG file.")
     interface.info("Found RPG file: %s" % config.rpgfile)
     config.name = get_gamename(os.path.join(directory, config.rpgfile))
     interface.info("Found RPG Game file: %s" % config.name)
