@@ -325,7 +325,7 @@ def build(iface, directory, commands):
     iface.info("Updating source code.")
     
     for srcfile in ('MainActivity', 'DataDownloader', 'Settings',):
-        edit_file("src/com/superwalrusland/walthros/%s.java" % srcfile, r'import .*\.R;', 'import {}.R;'.format(config.package))
+        edit_file("src/com/hamsterrepublic/ohrrpgce/game/%s.java" % srcfile, r'import .*\.R;', 'import {}.R;'.format(config.package))
     
     iface.info("Updating build files.")
         
