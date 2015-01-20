@@ -382,16 +382,6 @@ def build(iface, directory, commands):
     #make_tar("assets/private.mp3", private_dirs)
     #shutil.copytree(directory, 'assets')
     lump2zip(os.path.join(directory, config.rpgfile), 'assets')
-    cnt = 0
-    with open(os.path.join('assets','gamedata.zip'),'rb') as gamedata:
-        while 1:
-            buf = gamedata.read(1000000)
-            cntS = '0%s' % cnt if cnt < 10 else '%s' % cnt
-            open(os.path.join('assets','gamedata.zip%s' % cntS),'wb').write(buf)
-            if len(buf) < 1000000:
-                break
-            cnt+=1
-    os.unlink(os.path.join('assets','gamedata.zip'))
     
     if public_dir is not None:
         iface.info("Packaging external data.")
