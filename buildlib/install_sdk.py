@@ -133,12 +133,16 @@ def get_packages(interface):
 
     if not os.path.exists("android-sdk/platform-tools"):
         packages.append("platform-tools")
-    
-    if not os.path.exists("android-sdk/extras/google/play_licensing"):
-        packages.append("extra-google-play_licensing")
 
-    if not os.path.exists("android-sdk/extras/google/play_apk_expansion"):
-        packages.append("extra-google-play_apk_expansion")
+    if False:
+        # These aren't currently needed, but might be in future
+        # if we update to lastest sdl-android version
+        if not os.path.exists("android-sdk/extras/google/play_licensing"):
+            packages.append("extra-google-play_licensing")
+
+        if not os.path.exists("android-sdk/extras/google/play_apk_expansion"):
+            packages.append("extra-google-play_apk_expansion")
+
     if not os.path.exists("android-sdk/build-tools"):
         packages.append("build-tools-21.1.2")
     

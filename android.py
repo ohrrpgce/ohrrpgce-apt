@@ -35,7 +35,7 @@ def main():
             
         return args.argument
     
-    if args.command == "installsdk":
+    if args.command == "install_sdk":
         check_args(0)
         install_sdk.install_sdk(iface)
         

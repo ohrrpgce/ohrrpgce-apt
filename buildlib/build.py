@@ -227,7 +227,7 @@ def join_and_check(base, sub):
 
 def edit_file(fn, pattern, line):
     """
-    Replaces lines in `fn` that begin with `pattern` with `line`. `line`
+    Replaces lines in file `fn` that begin with regex `pattern` with `line`. `line`
     should not end with a newline - we add it.
     """
 
@@ -331,7 +331,7 @@ def build(iface, directory, commands):
         
     # Update the project to a recent version.
     subprocess.call([plat.android, "update", "project", "-p", '.', '-t', 'android-17', '-n', versioned_name,
-        "--library", "android-sdk/extras/google/play_licensing/library",
+        #"--library", "android-sdk/extras/google/play_licensing/library",
         #"--library", "android-sdk/extras/google/google_play_services/libproject/google-play-services_lib",
         #"--library", "android-sdk/extras/google/play_apk_expansion/downloader_library",
         ])
