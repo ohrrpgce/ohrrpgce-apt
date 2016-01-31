@@ -106,11 +106,11 @@ def unpack_ant(interface):
         interface.success("Apache ANT has already been unpacked.")
         return
     
-    archive = "apache-ant-1.8.4-bin.tar.gz"
-    unpacked = "apache-ant-1.8.4"
-    url = "http://archive.apache.org/dist/ant/binaries/" + archive
+    archive = "apache-ant-1.9.6-bin.tar.bz2"
+    unpacked = "apache-ant-1.9.6"
+    url = "https://www.apache.org/dist/ant/binaries/" + archive
 
-    interface.info("I'm downloading Apache Ant. This might take a while.")
+    interface.info("I'm downloading Apache Ant (4.2MB). This might take a while.")
     
     urllib.urlretrieve(url, archive)
     
