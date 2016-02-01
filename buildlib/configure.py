@@ -63,6 +63,10 @@ def file_md5hash(filepath):
         md5.update(fil.read())
     return md5.hexdigest()
 
+def letters_only(string):
+    "Strip all characters other than a-zA-Z from a string"
+    return ''.join(ch for ch in string if ord('a') <= ord(ch.lower()) <= ord('z'))
+
 def configure(interface, directory):
 
     config = Configuration(directory)
@@ -81,14 +85,21 @@ def configure(interface, directory):
     
     if config.icon_name is None:
         config.icon_name = config.name
-    
+
     config.icon_name = interface.input("What is the short name of your game? This name will be used in the launcher, and for application shortcuts.", config.icon_name)
 
-    config.package = interface.input("""\
-What is the name of the package?
+    if config.package is None:
+        config.package = "com.ohrrpgce." + letters_only(config.icon_name.lower())
 
-This is usually of the form com.domain.program or com.domain.email.program. It
-must only contain ASCII letters and dots.""", config.package)
+    config.package = interface.input("""\
+What is the internal name of the package?
+
+This is usually of the form com.domain.program or com.domain.subdomain.program.
+By convention this is the website of the game.
+If you don't have a website, you can use com.ohrrpgce.yourgamename.
+It will be visible to the user in places,
+such as the URL of your app in Google Play.
+It must only contain ASCII letters and dots.""", config.package)
 
     configure_version(interface, config)
 
