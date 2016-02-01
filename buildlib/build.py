@@ -259,8 +259,6 @@ def zip_directory(zf, dirname):
     
 def build(iface, directory, commands):
 
-    # Are we doing a Ren'Py build?
-
     if not os.path.isdir(directory):
         iface.fail("{} is not a directory.".format(directory))
 
@@ -398,6 +396,7 @@ def build(iface, directory, commands):
     try:   
         subprocess.check_call([plat.ant, "clean"] +  commands)
         iface.success("It looks like the build succeeded.")
+        iface.write("apk located in the bin/ directory")
     except:
         iface.fail("The build seems to have failed.")
 
@@ -413,3 +412,5 @@ def build(iface, directory, commands):
 
     if expansion_file is not None:
         os.rename(expansion_file, "bin/" + expansion_file)
+
+# todo: doing a release build then a debug one fails until proguard_project.txt is deleted

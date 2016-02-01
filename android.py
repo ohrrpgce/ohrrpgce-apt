@@ -29,9 +29,9 @@ def main():
 
     iface = interface.Interface()
     
-    def check_args(n):
+    def check_args(n, whatargs = "."):
         if len(args.argument) != n:
-            iface.fail("The {} command expects {} arguments.".format(args.command, n))
+            iface.fail("The {} command expects {} arguments{}".format(args.command, n, whatargs))
             
         return args.argument
     
@@ -40,7 +40,7 @@ def main():
         install_sdk.install_sdk(iface)
         
     elif args.command == "configure":
-        directory, = check_args(1)
+        directory, = check_args(1, ": android.py configure <project_directory>")
         configure.configure(iface, directory)
         
     elif args.command == "setconfig":
@@ -48,20 +48,16 @@ def main():
         configure.set_config(iface, directory, var, value)
         
     elif args.command == "build":
+        projectdir = args.argument[0]
         if len(args.argument) < 2:
-            iface.fail("The build command expects at least 2 arguments.")
-            
-        build.build(iface, args.argument[0], args.argument[1:])
+            iface.fail("The build command expects at least 2 arguments:\n\n android.py build <project_directory> {release|debug}")
+        build.build(iface, projectdir, args.argument[1:])
 
     elif args.command == "logcat":
         subprocess.call([ plat.adb, "logcat", "-s", "python:*"] + args.argument)
-
-    elif args.command == "test":
-        iface.success("All systems go!")
         
     else:
         ap.error("Unknown command: " + args.command)
         
 if __name__ == "__main__":
     main()
-    

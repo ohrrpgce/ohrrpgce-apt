@@ -111,6 +111,8 @@ Please enter a space-separated list of permissions.""", permissions)
     config.permissions = permissions.split()
 
     config.save(directory)
+
+    interface.write("Config complete. Run 'android.py build <project_dir>' to create your .apk")
     
 def set_config(iface, directory, var, value):
 
