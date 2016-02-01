@@ -51,6 +51,8 @@ def main():
         projectdir = args.argument[0]
         if len(args.argument) < 2:
             iface.fail("The build command expects at least 2 arguments:\n\n android.py build <project_directory> {release|debug}")
+        
+        configure.check_for_forced_update(iface, projectdir)
         build.build(iface, projectdir, args.argument[1:])
 
     elif args.command == "logcat":
