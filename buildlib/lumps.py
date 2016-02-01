@@ -23,7 +23,7 @@ def lump2zip(game, dest):
     with open(game,'rb') as f:
         while 1:
             try:
-                fi = getdata(f)
+                fi = getdata(f).lower()
             except:
                 break
             size = getlong(f)
