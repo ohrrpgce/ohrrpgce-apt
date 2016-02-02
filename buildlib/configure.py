@@ -114,14 +114,15 @@ It must only contain ASCII letters and dots.""", config.package)
     #        ("split", "Multiple directories that correspond to internal, external, and asset storage."),
     #        ], config.layout)
 
-    permissions = " ".join(config.permissions)
-    permissions = interface.input("""\
-What permissions should your application have? Possible permissions include:
+    # config.permissions isn't used yet, and doesn't vary per game yet anyway
+#     permissions = " ".join(config.permissions)
+#     permissions = interface.input("""\
+# What permissions should your application have? Possible permissions include:
 
-INTERNET (network access), VIBRATE (vibration control).
+# INTERNET (network access), VIBRATE (vibration control).
     
-Please enter a space-separated list of permissions.""", permissions)
-    config.permissions = permissions.split()
+# Please enter a space-separated list of permissions.""", permissions)
+#     config.permissions = permissions.split()
 
     config.save(directory)
 
