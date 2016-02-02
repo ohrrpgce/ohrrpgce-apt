@@ -1,0 +1,5 @@
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="files" path=""/> <!-- This allows us to generate URIs for any file in our getFilesDir(), where everything is saved -->
+    <cache-path name="cache" path=""/>
+    <external-path name="ext" path=""/> <!-- the sd-card -->
+</paths>
