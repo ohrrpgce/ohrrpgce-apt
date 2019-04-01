@@ -21,45 +21,60 @@ def main():
     os.chdir(ROOT)
 
     # Parse the arguments.
-    ap = argparse.ArgumentParser(description="Build an android package.")
-    ap.add_argument("command", help="The command to run. One of install_sdk, configure, or build.")
-    ap.add_argument("argument", nargs='*', help="The arguments to the selected command.")
-    
+    ap = argparse.ArgumentParser(description="""
+Package an OHRRPGCE game for Android. Start by running '%(prog)s install_sdk'.
+Then create a 'project' directory for your game and put your .rpg file in it,
+and run '%(prog)s configure <project_dir>' which will ask you questions
+and create configuration files.
+Finally run '%(prog)s build <project_dir>' to create the .apk.
+    """)
+    subparsers = ap.add_subparsers(dest='command', title='subcommands', description='Run "%(prog)s <subcommand> -h" to see options for each.')
+
+    sub = subparsers.add_parser('install_sdk', help='Install Android SDK automatically.')
+
+    sub = subparsers.add_parser('configure', help='Create config files.')
+    sub.add_argument('project_dir', help='Project directory, containing an .rpg file.')
+
+    sub = subparsers.add_parser('build', help='Create an .apk.')
+    sub.add_argument('project_dir', help='Project directory, containing an .rpg file.')
+    sub.add_argument('release_or_debug', choices=['release', 'debug'], default='release',
+                     help='Project directory, containing an .rpg file.')
+
+    sub = subparsers.add_parser('setconfig', help='Modify a configuration value in the config.json file..')
+    sub.add_argument('project_dir', help="Project directory (should have already run 'configure').")
+    sub.add_argument('var', help="Variable to change. Possibilities include 'version', 'name', 'rpgfile', and more. See configure.py.")
+    sub.add_argument('value', help='New value for the variable.')
+
+    sub = subparsers.add_parser('logcat', help='Run adb logcat.')
+    sub.add_argument('arguments', nargs='*', help='Extra adb arguments.')
+
+    if len(sys.argv) == 1:
+        ap.print_help()
+        return
+
     args = ap.parse_args()
 
     iface = interface.Interface()
-    
-    def check_args(n, whatargs = "."):
-        if len(args.argument) != n:
-            iface.fail("The {} command expects {} arguments{}".format(args.command, n, whatargs))
-            
-        return args.argument
-    
+
     if args.command == "install_sdk":
-        check_args(0)
         install_sdk.install_sdk(iface)
-        
+
     elif args.command == "configure":
-        directory, = check_args(1, ": android.py configure <project_directory>")
-        configure.configure(iface, directory)
-        
+        configure.configure(iface, args.project_dir)
+
     elif args.command == "setconfig":
-        directory, var, value = check_args(3)
-        configure.set_config(iface, directory, var, value)
-        
+        configure.set_config(iface, args.project_dir, args.var, args.value)
+
     elif args.command == "build":
-        projectdir = args.argument[0]
-        if len(args.argument) < 2:
-            iface.fail("The build command expects at least 2 arguments:\n\n android.py build <project_directory> {release|debug}")
-        
-        configure.check_for_forced_update(iface, projectdir)
-        build.build(iface, projectdir, args.argument[1:])
+        configure.check_for_forced_update(iface, args.project_dir)
+        build.build(iface, args.project_dir, args.release_or_debug)
 
     elif args.command == "logcat":
-        subprocess.call([ plat.adb, "logcat", "-s", "python:*"] + args.argument)
-        
+        subprocess.call([ plat.adb, "logcat", "-s", "python:*"] + args.arguments)
+
     else:
+        # Should never happen
         ap.error("Unknown command: " + args.command)
-        
+
 if __name__ == "__main__":
     main()
