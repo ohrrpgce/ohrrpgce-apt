@@ -1,8 +1,8 @@
 android-sdk
 apache-ant
 example
-.pyc
-~
+*.pyc
+*~
 assets
 bin
 gen
