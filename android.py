@@ -40,6 +40,9 @@ Finally run '%(prog)s build <project_dir>' to create the .apk.
     sub.add_argument('release_or_debug', choices=['release', 'debug'], default='release',
                      help='Project directory, containing an .rpg file.')
 
+    sub = subparsers.add_parser('download', help='(UNIMPLEMENTED) Download OHRRPGCE build (normally done automatically).')
+    sub.add_argument('stable', choices=['stable', 'nightly'], default='nightly') #, help='Whether to download latest stable release.')
+
     sub = subparsers.add_parser('setconfig', help='Modify a configuration value in the config.json file..')
     sub.add_argument('project_dir', help="Project directory (should have already run 'configure').")
     sub.add_argument('var', help="Variable to change. Possibilities include 'version', 'name', 'rpgfile', and more. See configure.py.")
@@ -64,6 +67,9 @@ Finally run '%(prog)s build <project_dir>' to create the .apk.
 
     elif args.command == "setconfig":
         configure.set_config(iface, args.project_dir, args.var, args.value)
+
+    elif args.command == "download":
+        ap.error("download unimplemented")
 
     elif args.command == "build":
         configure.check_for_forced_update(iface, args.project_dir)

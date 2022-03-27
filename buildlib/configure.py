@@ -67,6 +67,10 @@ def letters_only(string):
     "Strip all characters other than a-zA-Z from a string"
     return ''.join(ch for ch in string if ord('a') <= ord(ch.lower()) <= ord('z'))
 
+# def import_sdl_android_config(interface, config, old_settings):
+#     with open(old_settings, "r") as oldfile:
+#         settings = 
+
 def configure(interface, directory):
 
     config = Configuration(directory)
@@ -81,6 +85,21 @@ def configure(interface, directory):
     config.rpg_hash = file_md5hash(rpgfile)
     config.name = get_gamename(rpgfile)
     interface.info("Found RPG Game file: %s" % config.name)
+
+    # old_settings = os.path.join(directory, "AndroidAppSettings.cfg")
+    # if os.isfile(old_settings):
+    #     import_sdl_android_config(interface, config, old_settings)
+    # else:
+    #     configure_gameinfo(interface, config)
+    configure_gameinfo(interface, config)
+
+    config.save(directory)
+
+    interface.write("Config complete. Run 'android.py build <project_dir>' to create your .apk")
+
+
+def configure_gameinfo(interface, config):
+    """Ask questions about the game"""
     config.name = interface.input("""What is the full name of your game? This name will appear in the list of installed applications.""", config.name)
     
     if config.icon_name is None:
@@ -100,6 +119,8 @@ If you don't have a website, you can use com.ohrrpgce.yourgamename.
 It will be visible to the user in places,
 such as the URL of your app in Google Play.
 It must only contain ASCII letters and dots.""", config.package)
+
+    #config.nightly_build = interface.yesno("Do you want to use a nightly build of the OHRRPGCE instead of the last stable release?")
 
     configure_version(interface, config)
 
@@ -124,9 +145,6 @@ It must only contain ASCII letters and dots.""", config.package)
 # Please enter a space-separated list of permissions.""", permissions)
 #     config.permissions = permissions.split()
 
-    config.save(directory)
-
-    interface.write("Config complete. Run 'android.py build <project_dir>' to create your .apk")
     
 def configure_version(interface, config):
     version = interface.input("""\
