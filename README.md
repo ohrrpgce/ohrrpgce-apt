@@ -1,5 +1,5 @@
 
-# OHRRPGCE Android Packaging Tool (OHRRPGCEAPT)
+# OHRRPGCE Android Packaging Tool (OHRRPGCE-APT)
 
 This is an unfinished tool for packaging OHRRPGCE games for Android as .apks in a much easier way than the standard, extremely convoluted, way used by the OHRRPGCE developers. But it is not yet recommended, and no games are known to have been released in the wild using this tool.
 
@@ -14,16 +14,14 @@ It was originally created by Kevin Veroneau heavily based upon [Pygame Subset fo
 [These notes](https://www.slimesalad.com/forum/viewtopic.php?p=111978#p111978), although very old, may still be relevant.
 
 # License
-The Pygame Subset for Android is licensed under the GNU Lesser General Public License. To the best of our knowledge, Pygame, SDL, and all other dependences are licensed under compatible licenses.
+The Pygame Subset for Android is licensed under the GNU Lesser General Public License. To the best of our knowledge, Pygame, SDL, and all other dependencies are licensed under compatible licenses.
 
-The Pygame Subset for Android is by:
+The Pygame Subset for Android is by Tom Rothamel and Patrick Dawson.
 
-Tom Rothamel
-Patrick Dawson
 It integrates code from a number of projects under other licenses:
 
-Python-for-android
-Pelya's Android port of SDL 1.2 ([OHRRPGCE fork](https://github.com/bob-the-hamster/commandergenius))
-Jinja2
-Colorama
-Binary builds of the OHRRPGCE, SDL and SDL_mixer
+* Python-for-android
+* Pelya's Android port of SDL 1.2 ([OHRRPGCE fork](https://github.com/bob-the-hamster/commandergenius))
+* Jinja2
+* Colorama
+* Binary builds of the OHRRPGCE, SDL and SDL_mixer
